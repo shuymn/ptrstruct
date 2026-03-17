@@ -2,7 +2,6 @@ package ptrstruct
 
 import (
 	"go/ast"
-	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
@@ -84,11 +83,18 @@ func visitTypeSpec(
 		}
 
 		msg := FormatDiagnostic("field "+field.Name(), v)
-		diag := analysis.Diagnostic{Pos: fieldPos(spec, i), Message: msg}
+		astField := structField(spec, i)
+		pos := spec.Pos()
+		var target ast.Expr
+		if astField != nil {
+			pos = astField.Pos()
+			target = astField.Type
+		}
+		diag := diagnosticWithFix(pass, pos, target, msg, v)
 
 		declNode := blockOrSpec(genDecl, spec)
 		if !isSuppressed(pass, diag.Pos, declNode, file, cfg, fileSupp) {
-			pass.Report(diag)
+			pass.Report(*diag)
 		}
 		return // 1 violation per declaration
 	}
@@ -116,7 +122,7 @@ func checkReceiver(
 	}
 
 	msg := FormatDiagnostic("receiver", v)
-	return &analysis.Diagnostic{Pos: field.Pos(), Message: msg}
+	return diagnosticWithFix(pass, field.Pos(), field.Type, msg, v)
 }
 
 func checkParams(
@@ -160,7 +166,7 @@ func checkFieldList(
 			continue
 		}
 		msg := FormatDiagnostic(label(field), v)
-		return &analysis.Diagnostic{Pos: field.Pos(), Message: msg}
+		return diagnosticWithFix(pass, field.Pos(), field.Type, msg, v)
 	}
 	return nil
 }
@@ -172,12 +178,10 @@ func fieldLabeler(field *ast.Field) string {
 	return "parameter unnamed"
 }
 
-// fieldPos returns the position of the i-th field in a struct type spec.
-// Falls back to the spec position if the AST field cannot be determined.
-func fieldPos(spec *ast.TypeSpec, i int) token.Pos {
+func structField(spec *ast.TypeSpec, i int) *ast.Field {
 	st, ok := spec.Type.(*ast.StructType)
 	if !ok || st.Fields == nil {
-		return spec.Pos()
+		return nil
 	}
 
 	idx := 0
@@ -187,11 +191,11 @@ func fieldPos(spec *ast.TypeSpec, i int) token.Pos {
 			n = 1 // embedded field
 		}
 		if i < idx+n {
-			return f.Pos()
+			return f
 		}
 		idx += n
 	}
-	return spec.Pos()
+	return nil
 }
 
 // blockOrSpec returns the suppression target node for nolint checking.
