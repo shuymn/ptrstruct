@@ -2,8 +2,11 @@ package ptrstruct
 
 import (
 	"go/ast"
+	"os"
+	"path/filepath"
 	"strings"
 
+	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/analysis"
 )
 
@@ -27,7 +30,12 @@ func NewAnalyzer() *analysis.Analyzer {
 }
 
 func run(pass *analysis.Pass, cfg *Config) (any, error) {
-	cls, err := NewClassifier(cfg)
+	modulePath := ""
+	if cfg.AllowThirdParty {
+		modulePath = modulePathForPass(pass)
+	}
+
+	cls, err := newClassifier(cfg, modulePath)
 	if err != nil {
 		return nil, err
 	}
@@ -59,4 +67,37 @@ func visitFile(pass *analysis.Pass, file *ast.File, cfg *Config, cls *Classifier
 func isTestFile(pass *analysis.Pass, file *ast.File) bool {
 	name := pass.Fset.Position(file.Package).Filename
 	return strings.HasSuffix(name, "_test.go")
+}
+
+func modulePathForPass(pass *analysis.Pass) string {
+	if pass.Module != nil && pass.Module.Path != "" {
+		return pass.Module.Path
+	}
+	for _, file := range pass.Files {
+		filename := pass.Fset.Position(file.Package).Filename
+		if filename == "" {
+			continue
+		}
+		if modulePath := modulePathForFile(filename); modulePath != "" {
+			return modulePath
+		}
+	}
+	return ""
+}
+
+func modulePathForFile(filename string) string {
+	dir := filepath.Dir(filename)
+	for {
+		gomod := filepath.Join(dir, "go.mod")
+		data, err := os.ReadFile(gomod)
+		if err == nil {
+			return modfile.ModulePath(data)
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
 }

@@ -2,6 +2,7 @@ package ptrstruct
 
 import (
 	"go/types"
+	"strings"
 	"testing"
 )
 
@@ -92,6 +93,72 @@ func TestClassifier_IsAllowed_ByPattern(t *testing.T) {
 	}
 }
 
+func TestClassifier_IsAllowed_ByStdlib(t *testing.T) {
+	t.Parallel()
+
+	cfg := DefaultConfig()
+	cfg.AllowStdlib = true
+	cls, err := NewClassifier(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	timeValue := newNamedStruct("time", "time", "Time",
+		types.NewVar(0, nil, "wall", types.Typ[types.Uint64]),
+	)
+	if !cls.IsAllowed(timeValue) {
+		t.Error("time.Time should be allowed when stdlib exemption is enabled")
+	}
+
+	nullStr := newNamedStruct("database/sql", "sql", "NullString",
+		types.NewVar(0, nil, "String", types.Typ[types.String]),
+		types.NewVar(0, nil, "Valid", types.Typ[types.Bool]),
+	)
+	if !cls.IsAllowed(nullStr) {
+		t.Error("database/sql.NullString should be allowed when stdlib exemption is enabled")
+	}
+
+	user := newNamedStruct("example.com/app", "app", "User",
+		types.NewVar(0, nil, "Name", types.Typ[types.String]),
+	)
+	if cls.IsAllowed(user) {
+		t.Error("non-stdlib packages should not be allowed by stdlib exemption")
+	}
+}
+
+func TestClassifier_IsAllowed_ByThirdParty(t *testing.T) {
+	t.Parallel()
+
+	cfg := DefaultConfig()
+	cfg.AllowStdlib = false
+	cfg.AllowThirdParty = true
+	cls, err := newClassifier(cfg, "example.com/app")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	uuid := newNamedStruct("github.com/google/uuid", "uuid", "UUID",
+		types.NewVar(0, nil, "Bytes", types.NewArray(types.Typ[types.Byte], 16)),
+	)
+	if !cls.IsAllowed(uuid) {
+		t.Error("third-party type should be allowed when third-party exemption is enabled")
+	}
+
+	internal := newNamedStruct("example.com/app/internal/model", "model", "User",
+		types.NewVar(0, nil, "Name", types.Typ[types.String]),
+	)
+	if cls.IsAllowed(internal) {
+		t.Error("current-module package should not be allowed by third-party exemption")
+	}
+
+	timeValue := newNamedStruct("time", "time", "Time",
+		types.NewVar(0, nil, "wall", types.Typ[types.Uint64]),
+	)
+	if cls.IsAllowed(timeValue) {
+		t.Error("stdlib package should not be allowed by third-party exemption alone")
+	}
+}
+
 func TestClassifier_EmptyConfig(t *testing.T) {
 	t.Parallel()
 
@@ -107,4 +174,42 @@ func TestClassifier_EmptyConfig(t *testing.T) {
 	if cls.IsAllowed(user) {
 		t.Error("nothing should be allowed with empty config")
 	}
+}
+
+func TestNewClassifier_EmptyPatternIgnored(t *testing.T) {
+	t.Parallel()
+
+	cfg := DefaultConfig()
+	cfg.AllowPatterns = []string{""}
+
+	cls, err := newClassifier(cfg, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	named := newNamedStruct("example.com/foo", "foo", "ShouldNotBeAllowed",
+		types.NewVar(0, nil, "X", types.Typ[types.Int]),
+	)
+	if cls.IsAllowed(named) {
+		t.Error("empty pattern should be ignored, not match everything")
+	}
+}
+
+func TestClassifier_IsAllowed_ReDoSPattern(t *testing.T) {
+	t.Parallel()
+
+	cfg := DefaultConfig()
+	cfg.AllowPatterns = []string{`(a+)+`}
+
+	cls, err := newClassifier(cfg, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Go's regexp uses RE2 (linear time), so this completes instantly
+	// even with a pathological input designed to trigger backtracking engines.
+	named := newNamedStruct(strings.Repeat("a", 100)+"b", "pkg", "B",
+		types.NewVar(0, nil, "X", types.Typ[types.Int]),
+	)
+	cls.IsAllowed(named)
 }

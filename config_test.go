@@ -1,6 +1,9 @@
 package ptrstruct
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func TestDefaultConfig(t *testing.T) {
 	t.Parallel()
@@ -64,6 +67,12 @@ func TestDefaultConfig(t *testing.T) {
 	if !cfg.HonorNolintAll {
 		t.Error("HonorNolintAll should default to true")
 	}
+	if !cfg.AllowStdlib {
+		t.Error("AllowStdlib should default to true")
+	}
+	if cfg.AllowThirdParty {
+		t.Error("AllowThirdParty should default to false")
+	}
 
 	// Allowlists
 	if cfg.AllowTypes != nil {
@@ -74,5 +83,42 @@ func TestDefaultConfig(t *testing.T) {
 	}
 	if cfg.AllowPackages != nil {
 		t.Error("AllowPackages should default to nil")
+	}
+}
+
+func TestStringListFlag_Set(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{name: "normal", input: "foo,bar", want: []string{"foo", "bar"}},
+		{name: "empty string", input: "", want: nil},
+		{name: "double comma", input: "foo,,bar", want: []string{"foo", "bar"}},
+		{name: "trailing comma", input: "foo,", want: []string{"foo"}},
+		{name: "leading comma", input: ",foo", want: []string{"foo"}},
+		{name: "all commas", input: ",,,", want: []string{}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			var values []string
+			f := stringListFlag{values: &values}
+			if err := f.Set(tt.input); err != nil {
+				t.Fatal(err)
+			}
+			if tt.want == nil {
+				if values != nil {
+					t.Errorf("got %v, want nil", values)
+				}
+				return
+			}
+			if !slices.Equal(values, tt.want) {
+				t.Errorf("got %v, want %v", values, tt.want)
+			}
+		})
 	}
 }

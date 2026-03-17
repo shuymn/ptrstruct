@@ -24,6 +24,8 @@ type Config struct {
 	IgnoreTests     bool
 	HonorNolint     bool
 	HonorNolintAll  bool
+	AllowStdlib     bool
+	AllowThirdParty bool
 	AllowTypes      []string
 	AllowPatterns   []string
 	AllowPackages   []string
@@ -48,6 +50,8 @@ func DefaultConfig() *Config {
 		IgnoreTests:     false,
 		HonorNolint:     true,
 		HonorNolintAll:  true,
+		AllowStdlib:     true,
+		AllowThirdParty: false,
 		AllowTypes:      nil,
 		AllowPatterns:   nil,
 		AllowPackages:   nil,
@@ -71,6 +75,13 @@ func registerFlags(a *analysis.Analyzer, cfg *Config) {
 	a.Flags.BoolVar(&cfg.IgnoreTests, "ignore-tests", cfg.IgnoreTests, "skip test files")
 	a.Flags.BoolVar(&cfg.HonorNolint, "honor-nolint", cfg.HonorNolint, "honor //nolint:ptrstruct comments")
 	a.Flags.BoolVar(&cfg.HonorNolintAll, "honor-nolint-all", cfg.HonorNolintAll, "honor //nolint:all comments")
+	a.Flags.BoolVar(&cfg.AllowStdlib, "allow-stdlib", cfg.AllowStdlib, "exempt builtin and standard library packages")
+	a.Flags.BoolVar(
+		&cfg.AllowThirdParty,
+		"allow-third-party",
+		cfg.AllowThirdParty,
+		"exempt non-stdlib packages outside the current Go module",
+	)
 	a.Flags.Var(&stringListFlag{values: &cfg.AllowTypes}, "allow-types", "comma-separated allowed type names")
 	a.Flags.Var(&stringListFlag{values: &cfg.AllowPatterns}, "allow-patterns", "comma-separated allowed type patterns")
 	a.Flags.Var(&stringListFlag{values: &cfg.AllowPackages}, "allow-packages", "comma-separated allowed package paths")
@@ -93,6 +104,14 @@ func (f *stringListFlag) Set(s string) error {
 		*f.values = nil
 		return nil
 	}
-	*f.values = strings.Split(s, ",")
+	parts := strings.Split(s, ",")
+	n := 0
+	for _, p := range parts {
+		if p != "" {
+			parts[n] = p
+			n++
+		}
+	}
+	*f.values = parts[:n]
 	return nil
 }

@@ -57,8 +57,9 @@ linters:
       ptrstruct:
         type: module
         settings:
+          allow_stdlib: true
+          allow_third_party: true
           allow_types:
-            - time.Time
             - github.com/google/uuid.UUID
 ```
 
@@ -77,6 +78,8 @@ linters:
 | `-map-key` | `false` | Check map key types |
 | `-array-elem` | `false` | Check array element types |
 | `-chan-elem` | `false` | Check channel element types |
+| `-allow-stdlib` | `true` | Exempt builtin and standard library packages |
+| `-allow-third-party` | `false` | Exempt non-stdlib packages outside the current Go module |
 | `-allow-types` | | Comma-separated fully qualified type names to exempt (e.g. `time.Time`) |
 | `-allow-patterns` | | Comma-separated regex patterns for type names to exempt |
 | `-allow-packages` | | Comma-separated package paths to exempt |

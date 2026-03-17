@@ -47,6 +47,31 @@ func TestAnalyzer_Allow(t *testing.T) {
 	analysistest.Run(t, testdata, a, "allow")
 }
 
+func TestAnalyzer_AllowStdlib(t *testing.T) {
+	t.Parallel()
+
+	testdata := analysistest.TestData()
+	a := ptrstruct.NewAnalyzer()
+	if err := a.Flags.Set("allow-stdlib", "true"); err != nil {
+		t.Fatal(err)
+	}
+	analysistest.Run(t, testdata, a, "allowstdlib")
+}
+
+func TestAnalyzer_AllowThirdParty(t *testing.T) {
+	t.Parallel()
+
+	testdata := analysistest.TestData()
+	a := ptrstruct.NewAnalyzer()
+	if err := a.Flags.Set("allow-stdlib", "false"); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.Flags.Set("allow-third-party", "true"); err != nil {
+		t.Fatal(err)
+	}
+	analysistest.Run(t, testdata, a, "allowthirdparty")
+}
+
 func TestAnalyzer_Alias(t *testing.T) {
 	t.Parallel()
 
