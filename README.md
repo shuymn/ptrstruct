@@ -27,14 +27,11 @@ Empty structs (`struct{}`) are exempt.
 go install github.com/shuymn/ptrstruct/cmd/ptrstruct@latest
 ```
 
-ptrstruct ./...
-ptrstruct -fix ./...
-ptrstruct -fix -diff ./...
-```
+How to use:
 
-`-fix` applies analyzer suggested fixes in place. `-fix -diff` prints the patch without rewriting files.
-Autofix rewrites only the violating type syntax (`User` -> `*User`, `[]User` -> `[]*User`, `map[string]User` -> `map[string]*User`).
-It does not rewrite call sites, return expressions, or other downstream usage that may require manual follow-up.
+```bash
+ptrstruct ./...
+```
 
 ### golangci-lint
 
@@ -92,13 +89,6 @@ linters:
 | `-ignore-tests` | `false` | Skip test files |
 | `-honor-nolint` | `true` | Honor `//nolint:ptrstruct` comments |
 | `-honor-nolint-all` | `true` | Honor `//nolint:all` comments |
-
-Driver flags provided by `singlechecker`:
-
-| Flag | Description |
-|------|-------------|
-| `-fix` | Apply suggested fixes in place |
-| `-diff` | With `-fix`, print a unified diff instead of rewriting files |
 
 ### Suppression
 
