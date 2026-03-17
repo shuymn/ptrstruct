@@ -32,7 +32,7 @@ type Config struct {
 	AllowPackages   []string
 }
 
-// DefaultConfig returns a Config with mode-specific performance-tuning defaults.
+// DefaultConfig returns a Config with opposite mode-specific performance-tuning defaults.
 func DefaultConfig(mode Mode) *Config {
 	cfg := &Config{
 		Mode:            mode,
@@ -63,17 +63,15 @@ func DefaultConfig(mode Mode) *Config {
 	case ModePointer:
 		cfg.Param = true
 		cfg.Field = true
-		cfg.SliceElem = true
-		cfg.MapValue = true
-		cfg.ArrayElem = true
-		cfg.ChanElem = true
+		cfg.InterfaceMethod = true
+		cfg.FuncType = true
 	case ModeValue:
 		cfg.Receiver = false
-		cfg.Param = true
 		cfg.Result = true
-		cfg.Field = true
+		cfg.NamedType = true
 		cfg.SliceElem = true
 		cfg.MapValue = true
+		cfg.MapKey = true
 		cfg.ArrayElem = true
 		cfg.ChanElem = true
 	}

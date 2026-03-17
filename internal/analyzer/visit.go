@@ -11,6 +11,15 @@ type funcDeclChecker func(*analysis.Pass, *ast.FuncDecl, *Config, *Classifier) *
 
 var funcDeclChecks = [...]funcDeclChecker{checkReceiver, checkParams, checkResults}
 
+type typeSpecChecker func(*analysis.Pass, *ast.TypeSpec, *Config, *Classifier) *analysis.Diagnostic
+
+var typeSpecChecks = [...]typeSpecChecker{
+	checkStructFields,
+	checkInterfaceMethods,
+	checkFuncType,
+	checkNamedType,
+}
+
 func visitFuncDecl(
 	pass *analysis.Pass,
 	file *ast.File,
@@ -57,23 +66,42 @@ func visitTypeSpec(
 	cls *Classifier,
 	fileSupp *fileSuppression,
 ) {
+	for _, check := range typeSpecChecks {
+		diag := check(pass, spec, cfg, cls)
+		if diag == nil {
+			continue
+		}
+		declNode := blockOrSpec(genDecl, spec)
+		if !isSuppressed(pass, diag.Pos, declNode, file, cfg, fileSupp) {
+			pass.Report(*diag)
+		}
+		return // 1 violation per declaration
+	}
+}
+
+func checkStructFields(
+	pass *analysis.Pass,
+	spec *ast.TypeSpec,
+	cfg *Config,
+	cls *Classifier,
+) *analysis.Diagnostic {
 	if !cfg.Field {
-		return
+		return nil
 	}
 
 	obj := pass.TypesInfo.Defs[spec.Name]
 	if obj == nil {
-		return
+		return nil
 	}
 
 	named, ok := obj.Type().(*types.Named)
 	if !ok {
-		return
+		return nil
 	}
 
 	st, ok := named.Underlying().(*types.Struct)
 	if !ok {
-		return
+		return nil
 	}
 
 	for i := range st.NumFields() {
@@ -88,14 +116,122 @@ func visitTypeSpec(
 		if astField := structField(spec, i); astField != nil {
 			pos = astField.Pos()
 		}
-		diag := analysis.Diagnostic{Pos: pos, Message: msg}
-
-		declNode := blockOrSpec(genDecl, spec)
-		if !isSuppressed(pass, diag.Pos, declNode, file, cfg, fileSupp) {
-			pass.Report(diag)
-		}
-		return // 1 violation per declaration
+		return &analysis.Diagnostic{Pos: pos, Message: msg}
 	}
+
+	return nil
+}
+
+func checkInterfaceMethods(
+	pass *analysis.Pass,
+	spec *ast.TypeSpec,
+	cfg *Config,
+	cls *Classifier,
+) *analysis.Diagnostic {
+	if !cfg.InterfaceMethod {
+		return nil
+	}
+
+	iface, ok := spec.Type.(*ast.InterfaceType)
+	if !ok || iface.Methods == nil {
+		return nil
+	}
+
+	for _, field := range iface.Methods.List {
+		if len(field.Names) == 0 {
+			continue // embedded interface
+		}
+
+		ft, ok := field.Type.(*ast.FuncType)
+		if !ok {
+			continue
+		}
+
+		methodName := field.Names[0].Name
+		if diag := checkFieldList(
+			pass,
+			ft.Params,
+			cfg,
+			cls,
+			func(f *ast.Field) string { return "interface method " + methodName + " " + fieldLabeler(f) },
+		); diag != nil {
+			return diag
+		}
+		if diag := checkFieldList(
+			pass,
+			ft.Results,
+			cfg,
+			cls,
+			func(*ast.Field) string { return "interface method " + methodName + " result" },
+		); diag != nil {
+			return diag
+		}
+	}
+
+	return nil
+}
+
+func checkFuncType(
+	pass *analysis.Pass,
+	spec *ast.TypeSpec,
+	cfg *Config,
+	cls *Classifier,
+) *analysis.Diagnostic {
+	if !cfg.FuncType {
+		return nil
+	}
+
+	ft, ok := spec.Type.(*ast.FuncType)
+	if !ok {
+		return nil
+	}
+
+	typeName := spec.Name.Name
+	if diag := checkFieldList(
+		pass,
+		ft.Params,
+		cfg,
+		cls,
+		func(f *ast.Field) string { return "function type " + typeName + " " + fieldLabeler(f) },
+	); diag != nil {
+		return diag
+	}
+	return checkFieldList(
+		pass,
+		ft.Results,
+		cfg,
+		cls,
+		func(*ast.Field) string { return "function type " + typeName + " result" },
+	)
+}
+
+func checkNamedType(
+	pass *analysis.Pass,
+	spec *ast.TypeSpec,
+	cfg *Config,
+	cls *Classifier,
+) *analysis.Diagnostic {
+	if !cfg.NamedType {
+		return nil
+	}
+
+	obj := pass.TypesInfo.Defs[spec.Name]
+	if obj == nil {
+		return nil
+	}
+
+	named, ok := obj.Type().(*types.Named)
+	if !ok || !isNamedContainerType(named.Underlying()) {
+		return nil
+	}
+
+	v := FindViolation(named, cfg, cls)
+	if v == nil {
+		return nil
+	}
+
+	msg := FormatDiagnostic("named type "+spec.Name.Name, v, cfg.Mode)
+	return &analysis.Diagnostic{Pos: spec.Pos(), Message: msg}
 }
 
 func checkReceiver(
@@ -194,6 +330,17 @@ func structField(spec *ast.TypeSpec, i int) *ast.Field {
 		idx += n
 	}
 	return nil
+}
+
+func isNamedContainerType(t types.Type) bool {
+	switch tt := types.Unalias(t).(type) {
+	case *types.Slice, *types.Map, *types.Array, *types.Chan:
+		return true
+	case *types.Pointer:
+		return isNamedContainerType(tt.Elem())
+	default:
+		return false
+	}
 }
 
 // blockOrSpec returns the suppression target node for nolint checking.

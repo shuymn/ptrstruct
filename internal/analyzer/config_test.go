@@ -14,7 +14,7 @@ func TestDefaultConfig_ModePointer(t *testing.T) {
 		t.Error("Mode should be ModePointer")
 	}
 
-	// Copy-reduction defaults.
+	// Pointer-leaning defaults for an initial refactor pass.
 	if !cfg.Receiver {
 		t.Error("Receiver should default to true")
 	}
@@ -27,11 +27,11 @@ func TestDefaultConfig_ModePointer(t *testing.T) {
 	if !cfg.Field {
 		t.Error("Field should default to true")
 	}
-	if cfg.InterfaceMethod {
-		t.Error("InterfaceMethod should default to false")
+	if !cfg.InterfaceMethod {
+		t.Error("InterfaceMethod should default to true")
 	}
-	if cfg.FuncType {
-		t.Error("FuncType should default to false")
+	if !cfg.FuncType {
+		t.Error("FuncType should default to true")
 	}
 	if cfg.NamedType {
 		t.Error("NamedType should default to false")
@@ -40,17 +40,17 @@ func TestDefaultConfig_ModePointer(t *testing.T) {
 	if cfg.MapKey {
 		t.Error("MapKey should default to false")
 	}
-	if !cfg.SliceElem {
-		t.Error("SliceElem should default to true")
+	if cfg.SliceElem {
+		t.Error("SliceElem should default to false")
 	}
-	if !cfg.MapValue {
-		t.Error("MapValue should default to true")
+	if cfg.MapValue {
+		t.Error("MapValue should default to false")
 	}
-	if !cfg.ArrayElem {
-		t.Error("ArrayElem should default to true")
+	if cfg.ArrayElem {
+		t.Error("ArrayElem should default to false")
 	}
-	if !cfg.ChanElem {
-		t.Error("ChanElem should default to true")
+	if cfg.ChanElem {
+		t.Error("ChanElem should default to false")
 	}
 
 	// File filtering
@@ -96,18 +96,18 @@ func TestDefaultConfig_ModeValue(t *testing.T) {
 		t.Error("Mode should be ModeValue")
 	}
 
-	// Allocation- and indirection-reduction defaults.
+	// Value-leaning defaults for an initial refactor pass.
 	if cfg.Receiver {
 		t.Error("Receiver should default to false")
 	}
-	if !cfg.Param {
-		t.Error("Param should default to true")
+	if cfg.Param {
+		t.Error("Param should default to false")
 	}
 	if !cfg.Result {
 		t.Error("Result should default to true")
 	}
-	if !cfg.Field {
-		t.Error("Field should default to true")
+	if cfg.Field {
+		t.Error("Field should default to false")
 	}
 	if cfg.InterfaceMethod {
 		t.Error("InterfaceMethod should default to false")
@@ -115,8 +115,8 @@ func TestDefaultConfig_ModeValue(t *testing.T) {
 	if cfg.FuncType {
 		t.Error("FuncType should default to false")
 	}
-	if cfg.NamedType {
-		t.Error("NamedType should default to false")
+	if !cfg.NamedType {
+		t.Error("NamedType should default to true")
 	}
 	if !cfg.SliceElem {
 		t.Error("SliceElem should default to true")
@@ -124,8 +124,8 @@ func TestDefaultConfig_ModeValue(t *testing.T) {
 	if !cfg.MapValue {
 		t.Error("MapValue should default to true")
 	}
-	if cfg.MapKey {
-		t.Error("MapKey should default to false")
+	if !cfg.MapKey {
+		t.Error("MapKey should default to true")
 	}
 	if !cfg.ArrayElem {
 		t.Error("ArrayElem should default to true")
