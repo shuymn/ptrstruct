@@ -54,7 +54,7 @@ type User struct {
 
 func (u User) Normalize() {}
 
-func Save(users []User) {}
+func Save(u User) {}
 `)
 
 	cmd := exec.Command(binPath, "./...")
@@ -68,7 +68,7 @@ func Save(users []User) {}
 	if !strings.Contains(text, "receiver uses value struct User; use *User") {
 		t.Fatalf("output missing receiver diagnostic\n%s", text)
 	}
-	if !strings.Contains(text, "parameter users uses slice element User by value") {
+	if !strings.Contains(text, "parameter u uses value struct User; use *User") {
 		t.Fatalf("output missing parameter diagnostic\n%s", text)
 	}
 }

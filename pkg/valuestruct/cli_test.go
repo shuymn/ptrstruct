@@ -54,7 +54,7 @@ type User struct {
 
 func (u User) Normalize() {}
 
-func Save(u *User) {}
+func Load() *User { return nil }
 `)
 
 	cmd := exec.Command(binPath, "./...")
@@ -65,8 +65,8 @@ func Save(u *User) {}
 	}
 
 	text := string(out)
-	if !strings.Contains(text, "parameter u uses pointer to struct User; use User") {
-		t.Fatalf("output missing parameter diagnostic\n%s", text)
+	if !strings.Contains(text, "result uses pointer to struct User; use User") {
+		t.Fatalf("output missing result diagnostic\n%s", text)
 	}
 }
 

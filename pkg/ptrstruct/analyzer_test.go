@@ -14,7 +14,20 @@ import (
 func allChecksAnalyzer(t *testing.T) *analysis.Analyzer {
 	t.Helper()
 	a := ptrstruct.NewAnalyzer()
-	for _, flag := range []string{"receiver", "param", "result", "field", "slice-elem", "map-value"} {
+	for _, flag := range []string{
+		"receiver",
+		"param",
+		"result",
+		"field",
+		"interface-method",
+		"func-type",
+		"named-type",
+		"slice-elem",
+		"map-value",
+		"map-key",
+		"array-elem",
+		"chan-elem",
+	} {
 		if err := a.Flags.Set(flag, "true"); err != nil {
 			t.Fatal(err)
 		}
@@ -26,7 +39,7 @@ func TestAnalyzer(t *testing.T) {
 	t.Parallel()
 
 	testdata := analysistest.TestData()
-	analysistest.Run(t, testdata, allChecksAnalyzer(t), "basic", "ok", "containers", "generics")
+	analysistest.Run(t, testdata, allChecksAnalyzer(t), "basic", "ok", "containers", "generics", "typesigs")
 }
 
 func TestAnalyzer_Suppress(t *testing.T) {
@@ -54,12 +67,7 @@ func TestAnalyzer_Allow(t *testing.T) {
 	t.Parallel()
 
 	testdata := analysistest.TestData()
-	a := ptrstruct.NewAnalyzer()
-	for _, flag := range []string{"receiver", "param", "result", "field", "slice-elem", "map-value"} {
-		if err := a.Flags.Set(flag, "true"); err != nil {
-			t.Fatal(err)
-		}
-	}
+	a := allChecksAnalyzer(t)
 	if err := a.Flags.Set("allow-types", "time.Time"); err != nil {
 		t.Fatal(err)
 	}
@@ -70,12 +78,7 @@ func TestAnalyzer_AllowStdlib(t *testing.T) {
 	t.Parallel()
 
 	testdata := analysistest.TestData()
-	a := ptrstruct.NewAnalyzer()
-	for _, flag := range []string{"receiver", "param", "result", "field", "slice-elem", "map-value"} {
-		if err := a.Flags.Set(flag, "true"); err != nil {
-			t.Fatal(err)
-		}
-	}
+	a := allChecksAnalyzer(t)
 	if err := a.Flags.Set("allow-stdlib", "true"); err != nil {
 		t.Fatal(err)
 	}
@@ -86,12 +89,7 @@ func TestAnalyzer_AllowThirdParty(t *testing.T) {
 	t.Parallel()
 
 	testdata := analysistest.TestData()
-	a := ptrstruct.NewAnalyzer()
-	for _, flag := range []string{"receiver", "param", "result", "field", "slice-elem", "map-value"} {
-		if err := a.Flags.Set(flag, "true"); err != nil {
-			t.Fatal(err)
-		}
-	}
+	a := allChecksAnalyzer(t)
 	if err := a.Flags.Set("allow-stdlib", "false"); err != nil {
 		t.Fatal(err)
 	}
@@ -151,12 +149,7 @@ func TestAnalyzer_IgnoreTestsEnabled(t *testing.T) {
 	// skiptests/_test.go has a violation but no // want comment;
 	// if the analyzer checked it, analysistest would fail.
 	testdata := analysistest.TestData()
-	a := ptrstruct.NewAnalyzer()
-	for _, flag := range []string{"receiver", "param", "result", "field", "slice-elem", "map-value"} {
-		if err := a.Flags.Set(flag, "true"); err != nil {
-			t.Fatal(err)
-		}
-	}
+	a := allChecksAnalyzer(t)
 	if err := a.Flags.Set("ignore-tests", "true"); err != nil {
 		t.Fatal(err)
 	}
