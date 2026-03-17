@@ -7,9 +7,7 @@ env:
   GOLANGCI_LINT_CACHE: "{{.ROOT_DIR}}/.cache/golangci-lint"
 
 vars:
-  BINARY_NAME: ptrstruct
   BIN_DIR: bin
-  BINARY_PATH: "{{.BIN_DIR}}/{{.BINARY_NAME}}"
   COVERAGE_FILE: coverage.out
   GOLANGCI_LINT_VERSION: v2.11.2
   GITLEAKS_BIN: gitleaks
@@ -24,15 +22,30 @@ tasks:
       - task --list
 
   build:
-    desc: Build the main binary
+    desc: Build all binaries
     summary: |
-      Builds the default entrypoint and writes the binary artifact.
-      This task mutates the workspace by creating/updating {{.BINARY_PATH}}.
+      Builds ptrstruct and valuestruct binaries.
+    deps: [build:ptrstruct, build:valuestruct]
+
+  build:ptrstruct:
+    desc: Build the ptrstruct binary
+    summary: |
+      Builds the ptrstruct entrypoint and writes the binary artifact.
     cmds:
       - mkdir -p {{.BIN_DIR}}
-      - go build -o {{.BINARY_PATH}} ./cmd/ptrstruct
-      - test -f {{.BINARY_PATH}}
-      - test -x {{.BINARY_PATH}}
+      - go build -o {{.BIN_DIR}}/ptrstruct ./cmd/ptrstruct
+      - test -f {{.BIN_DIR}}/ptrstruct
+      - test -x {{.BIN_DIR}}/ptrstruct
+
+  build:valuestruct:
+    desc: Build the valuestruct binary
+    summary: |
+      Builds the valuestruct entrypoint and writes the binary artifact.
+    cmds:
+      - mkdir -p {{.BIN_DIR}}
+      - go build -o {{.BIN_DIR}}/valuestruct ./cmd/valuestruct
+      - test -f {{.BIN_DIR}}/valuestruct
+      - test -x {{.BIN_DIR}}/valuestruct
 
   build:check:
     desc: Compile-check all packages
@@ -48,18 +61,18 @@ tasks:
       Deletes local build artifacts and coverage output.
       Safe to run at any time.
     cmds:
-      - rm -f {{.BINARY_PATH}}
+      - rm -f {{.BIN_DIR}}/ptrstruct {{.BIN_DIR}}/valuestruct
       - rm -f {{.COVERAGE_FILE}}
       - go clean
 
   run:
-    desc: Build and run the main binary
+    desc: Build and run ptrstruct
     summary: |
-      Builds the default entrypoint and then executes it.
+      Builds the ptrstruct entrypoint and then executes it.
       Intended for local manual use.
-    deps: [build]
+    deps: [build:ptrstruct]
     cmds:
-      - ./{{.BINARY_PATH}}
+      - ./{{.BIN_DIR}}/ptrstruct
 
   test:
     desc: Run tests with race detection and shuffle
