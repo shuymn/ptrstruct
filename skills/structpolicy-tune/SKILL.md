@@ -124,7 +124,7 @@ the nil-safety cost before changing:
 
 | Situation | Action |
 |-----------|--------|
-| Field is always set at construction time and never observed as zero-value | Fix — change to `*T` |
+| Field is always set at construction time and never observed as zero-value | Fix — change to `*T` (low priority unless on a hot path) |
 | Field requires lazy initialization or nil checks to avoid panic (e.g., `if f.x == nil { f.x = &X{} }`) | **Skip** — the nil-safety burden outweighs the allocation benefit |
 | Field is in a mutable struct where nil/non-nil carries semantic meaning | Investigate — weigh the API clarity vs. allocation trade-off |
 
@@ -132,7 +132,7 @@ The general principle: if changing a field to pointer forces defensive nil
 checks at usage sites, the safety cost is too high unless benchmarks show a
 clear hot-path benefit.
 
-#### Skip — external / framework-constrained types
+#### Skip — types that should keep pointer semantics
 
 Do not change types when:
 
@@ -151,11 +151,16 @@ Do not change types when:
   by value would invalidate those pointers.
 
 - **Slice element types (`[]*T` → `[]T`)**: If valuestruct flags slice elements,
-  converting `[]*T` to `[]T` forces callers into index-based access patterns
-  (`&slice[i]`, `d := &decls[i]`) to obtain pointers for mutation or passing to
-  functions expecting `*T`. This is not idiomatic Go — the standard pattern is
-  `for _, v := range slice` with direct use. Skip unless benchmarks prove a
-  significant allocation win on a hot path.
+  check how callers use the elements. When the struct is small (≤ ~128 bytes)
+  and callers only read elements, converting to `[]T` with `for _, v := range`
+  is valid — the range copy is cheap and eliminates per-element heap allocation.
+  After converting, rewrite callers to use `for _, v := range` instead of
+  index-based access. Mechanical conversion often leaves behind unnecessary
+  `v := &slice[i]` — this defeats the purpose of the change because the
+  address-taking is no longer needed when the element is a value.
+  When callers mutate elements, pass them to functions expecting `*T`, or the
+  struct is large, keep `[]*T` — converting would force `&slice[i]` patterns
+  that are less idiomatic than `for _, v := range`.
 
 - **Interface satisfaction**: If a pointer receiver is needed to satisfy an
   interface and the struct is returned by value, callers would need `&v` just to
